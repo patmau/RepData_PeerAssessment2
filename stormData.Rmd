@@ -72,9 +72,49 @@ A much more thorough cleaning-up of event types in the data would be needed, but
 
 
 ### Financial damage
-```{r processDamage}
-expName <- c("U", "K", "M", "B")
-expNumber <- c(1, 1E3, 1E6, 1E9)
-names(expNumber) <- expName
 
+Financial damage results from damage to property and damage to crop.
+It is represented in the dataset as a combination of a number ("`PROPDMG`") and a magnitude expressed as an alphabetical character (`PROPDMGEXP`).
+According to the documentation, allowed characters include 'K', 'M', 'B', for 10^3, 10^6, and 10^9.
+We find:
+```{r damageExponents}
+summary(factor(data$PROPDMGEXP))
+summary(factor(data$CROPDMGEXP))
 ```
+The vast majority of entries contains no exponent or a valid one, and only those will be considered in this analysis:
+
+```{r processDamage}
+# valid exponents
+expName <- c("U", "K", "M", "B")
+expValue <- c(1, 1E3, 1E6, 1E9)
+names(expValue) <- expName
+
+# replace empty exponents with "U" (Unit) 
+data$PROPDMGEXP[data$PROPDMGEXP == ""] <- "U"
+data$CROPDMGEXP[data$CROPDMGEXP == ""] <- "U"
+
+# extract entries with valid exponents
+validExp <- data$PROPDMGEXP %in% expName & data$CROPDMGEXP %in%expName
+damagaData <- data[validExp, ]
+
+# combine property and crop damage
+damagaData$totalDamage <- damagaData$PROPDMG * expValue[damagaData$PROPDMGEXP] +
+    damagaData$CROPDMG * expValue[damagaData$CROPDMGEXP]
+```
+
+The single event with the highest damage:
+```{r maxDamaga}
+maxEvent <- which.max(damagaData$totalDamage)
+damagaData[maxEvent, ]
+```
+A total damage of more than 100 Billion USD seems excessive for this event. It is in fact more than three times the damage attributed to storm surge during Hurricane Katrina (this event is ranked 2nd in terms of total damage).
+For the Napa valley flooding event, we will set the total damage to 100M USD, which seems a more reasonable value (the `REMARKS` entry for this event mentions a damage of at least 70M).
+```{r napaDamage}
+damagaData$totalDamage[maxEvent] <- 100E6
+```
+
+```{r}
+ordered <- order(damagaData$totalDamage, decreasing = TRUE)
+head(damagaData[ordered, ], 3)
+```
+
