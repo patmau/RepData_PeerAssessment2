@@ -7,7 +7,42 @@ output: html_document
 
 # Storm Data Analysis
 
+## Synopsis
+
+bla bla bla
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## System info
+
+```{r systemInfo}
+sessionInfo()
+```
+
+## Download and process data
+
+Download the file if necessary and load it into R:
+
+```{r download}
+dataFile <- "data/StormData.csv.bz2"
+if (!file.exists(dataFile)) {
+    url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+    download.file(url, dataFile, method = "curl")   
+}
+
+data <- read.csv(dataFile, header = TRUE, stringsAsFactors = FALSE)
+```
+
+### Event types
+
+The Storm Data Documentation
+
+### Financial damage
+```{r processDamage}
+expName <- c("U", "K", "M", "B")
+expNumber <- c(1, 1E3, 1E6, 1E9)
+names(expNumber) <- expName
+
+```
