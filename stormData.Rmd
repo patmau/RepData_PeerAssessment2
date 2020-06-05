@@ -37,7 +37,39 @@ data <- read.csv(dataFile, header = TRUE, stringsAsFactors = FALSE)
 
 ### Event types
 
-The Storm Data Documentation
+The [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) lists 48 permitted event types.
+In the data file, however, we find no less than `r length(levels(factor(data$EVTYPE)))` event types.
+The top five most occurring event types:
+```{r eventTypes}
+head(summary(factor(data$EVTYPE)), 5)
+```
+Clearly, "TSTM WIND" and "THUNDERSTORM WIND" refer to the same type of event.
+We perform a coarse clean-up of event types:
+
+```{r cleanEventTypes}
+# everything to upper case
+data$EVTYPE <- toupper(data$EVTYPE)
+
+# TSTM -> THUNDERSTORM
+data$EVTYPE <- gsub("TSTM", "THUNDERSTORM", data$EVTYPE)
+
+# combine types containing a certain keyword into a single event type
+keys <- c("HURRICANE", "TORNADO", "THUNDERSTORM WIND", "FLASH FLOOD", "BLIZZARD", "HEAVY RAIN", "HEAVY SNOW")
+for (key in keys) {
+    index <- grep(key, data$EVTYPE)
+    data$EVTYPE[index] <- key
+}
+
+data$EVTYPE <- factor(data$EVTYPE)
+```
+
+The number of event types is now `r length(levels(data$EVTYPE))`, with the top five:
+```{r eventTypes2}
+head(summary(data$EVTYPE), 5)
+```
+
+A much more thorough cleaning-up of event types in the data would be needed, but is beyond the scope of this assignment.
+
 
 ### Financial damage
 ```{r processDamage}
