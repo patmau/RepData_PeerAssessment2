@@ -30,7 +30,7 @@ sessionInfo()
 
 Download the file if necessary and load it into R:
 
-```{r download}
+```{r download, cache=TRUE}
 dataFile <- "data/StormData.csv.bz2"
 if (!file.exists(dataFile)) {
     url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
@@ -127,49 +127,23 @@ damageData$totalDamage[maxEvent] <- 100E6
 ```{r damage}
 damage <- select(damageData, EVTYPE, totalDamage) %>%
     group_by(EVTYPE) %>%
-    summarise(total = sum(totalDamage)) %>%
+    summarise(total = sum(totalDamage), count = n(), mean = mean(totalDamage)) %>%
     arrange(desc(total))
 
-top5 <- head(damage, 5)
-ggplot(top5,
+top5 <- head(damage, 6)
+
+ggplot(data = top5,
        aes(x = reorder(EVTYPE, -total),
-           y = total * 1E-9)) +
+           y = total * 1E-9,
+           fill = log10(count))) +
     geom_col() +
     labs(title = "Total Damage 1950 - 2011 by Event Type",
          x = "",
-         y = "Billion USD")
-       
+         y = "Billion USD",
+         fill = "Nr. of events\n(log scale)")
+
 ```
 
-```{r severeDamage}
-severeDmg <- select(damageData, EVTYPE, totalDamage) %>%
-    filter(totalDamage >= 1E6)
-
-severeFreq <- group_by(severeDmg, EVTYPE) %>%
-    summarise(count = n()) %>%
-    arrange(desc(count))
-
-top5 <- head(severeFreq, 5)
-
-breaks <- 10^(seq(6, 11, 0.5))
-ticks <- 10^(6:10)
-histplot <- ggplot(severeDmg, aes(x = totalDamage)) +
-    geom_histogram(breaks = breaks) +
-    scale_x_log10(breaks = ticks) +
-    labs(title = "Histogram of Events with severe Damage",
-         x = "Damage in USD",
-         y = "Frequency")
-
-
-top5$EVTYPE <- gsub(" ", "\n", top5$EVTYPE)
-evplot <- ggplot(top5, aes(x = reorder(EVTYPE, -count), y = count)) +
-    geom_bar(stat = "identity") +
-    labs(title = "Most frequent Events with severe Damage",
-         x = "",
-         y = "Nr. of events")
-
-grid.arrange(histplot, evplot, nrow = 2)
-```
 
 ### Casualties
 
@@ -195,7 +169,8 @@ fullplot <- ggplot(data = melted,
          x = "",
          y = "Casualties") +
     theme(legend.title = element_blank()) + 
-    geom_bar(position = "stack", stat = "identity")
+    geom_bar(position = "stack", stat = "identity") +
+    scale_fill_manual(values = c("red", "black"))
 
 zoomplot <- fullplot +
     coord_cartesian(ylim = c(0, 12000)) +
