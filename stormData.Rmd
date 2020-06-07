@@ -13,6 +13,11 @@ bla bla bla
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(gridExtra)
 ```
 
 ## System info
@@ -29,7 +34,8 @@ Download the file if necessary and load it into R:
 dataFile <- "data/StormData.csv.bz2"
 if (!file.exists(dataFile)) {
     url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
-    download.file(url, dataFile, method = "curl")   
+    download.file(url, dataFile, method = "curl")
+    date()
 }
 
 data <- read.csv(dataFile, header = TRUE, stringsAsFactors = FALSE)
@@ -95,26 +101,106 @@ data$CROPDMGEXP[data$CROPDMGEXP == ""] <- "U"
 
 # extract entries with valid exponents
 validExp <- data$PROPDMGEXP %in% expName & data$CROPDMGEXP %in%expName
-damagaData <- data[validExp, ]
+damageData <- data[validExp, ]
 
 # combine property and crop damage
-damagaData$totalDamage <- damagaData$PROPDMG * expValue[damagaData$PROPDMGEXP] +
-    damagaData$CROPDMG * expValue[damagaData$CROPDMGEXP]
+damageData$totalDamage <- damageData$PROPDMG * expValue[damageData$PROPDMGEXP] +
+    damageData$CROPDMG * expValue[damageData$CROPDMGEXP]
 ```
 
-The single event with the highest damage:
-```{r maxDamaga}
-maxEvent <- which.max(damagaData$totalDamage)
-damagaData[maxEvent, ]
+The single event with the largest total damage:
+```{r maxDamage}
+maxEvent <- which.max(damageData$totalDamage)
+damageData[maxEvent, ]
 ```
-A total damage of more than 100 Billion USD seems excessive for this event. It is in fact more than three times the damage attributed to storm surge during Hurricane Katrina (this event is ranked 2nd in terms of total damage).
-For the Napa valley flooding event, we will set the total damage to 100M USD, which seems a more reasonable value (the `REMARKS` entry for this event mentions a damage of at least 70M).
+A total damage of more than 100 Billion USD seems excessive for this event. It is more than three times the damage attributed to storm surge in Louisiana during Hurricane Katrina (this event ranks 2nd).
+For the Napa Valley flooding event, we will set the total damage to 100M USD, which seems a more reasonable value (the `REMARKS` entry for this event mentions a damage of at least 70M).
 ```{r napaDamage}
-damagaData$totalDamage[maxEvent] <- 100E6
+damageData$totalDamage[maxEvent] <- 100E6
 ```
 
-```{r}
-ordered <- order(damagaData$totalDamage, decreasing = TRUE)
-head(damagaData[ordered, ], 3)
+
+## Results
+
+### Financial damage
+
+```{r damage}
+damage <- select(damageData, EVTYPE, totalDamage) %>%
+    group_by(EVTYPE) %>%
+    summarise(total = sum(totalDamage)) %>%
+    arrange(desc(total))
+
+top5 <- head(damage, 5)
+ggplot(top5,
+       aes(x = reorder(EVTYPE, -total),
+           y = total * 1E-9)) +
+    geom_col() +
+    labs(title = "Total Damage 1950 - 2011 by Event Type",
+         x = "",
+         y = "Billion USD")
+       
 ```
 
+```{r severeDamage}
+severeDmg <- select(damageData, EVTYPE, totalDamage) %>%
+    filter(totalDamage >= 1E6)
+
+severeFreq <- group_by(severeDmg, EVTYPE) %>%
+    summarise(count = n()) %>%
+    arrange(desc(count))
+
+top5 <- head(severeFreq, 5)
+
+breaks <- 10^(seq(6, 11, 0.5))
+ticks <- 10^(6:10)
+histplot <- ggplot(severeDmg, aes(x = totalDamage)) +
+    geom_histogram(breaks = breaks) +
+    scale_x_log10(breaks = ticks) +
+    labs(title = "Histogram of Events with severe Damage",
+         x = "Damage in USD",
+         y = "Frequency")
+
+
+top5$EVTYPE <- gsub(" ", "\n", top5$EVTYPE)
+evplot <- ggplot(top5, aes(x = reorder(EVTYPE, -count), y = count)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Most frequent Events with severe Damage",
+         x = "",
+         y = "Nr. of events")
+
+grid.arrange(histplot, evplot, nrow = 2)
+```
+
+### Casualties
+
+```{r peopleDamage}
+casualties <- select(data, EVTYPE, FATALITIES, INJURIES) %>%
+    group_by(EVTYPE) %>%
+    summarise(injured = sum(INJURIES),
+              fatal = sum(FATALITIES)) %>%
+    arrange(desc(injured + fatal))
+
+top5 <- head(casualties, 5)
+melted <- melt(top5, id.vars = "EVTYPE")
+
+#line breaks for x-axis labels
+melted$EVTYPE <- gsub(" ", "\n", melted$EVTYPE)
+
+fullplot <- ggplot(data = melted,
+       aes(x = reorder(EVTYPE, -value),
+           y = value,
+           fill = variable)
+       ) +
+    labs(title = "Total Number of Casualties 1950 - 2011",
+         x = "",
+         y = "Casualties") +
+    theme(legend.title = element_blank()) + 
+    geom_bar(position = "stack", stat = "identity")
+
+zoomplot <- fullplot +
+    coord_cartesian(ylim = c(0, 12000)) +
+    labs(title = "Zoomed View")
+
+grid.arrange(fullplot, zoomplot, nrow = 2)
+
+```
