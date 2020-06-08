@@ -18,6 +18,7 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 library(gridExtra)
+library(formattable)
 ```
 
 ## System info
@@ -124,13 +125,13 @@ damageData$totalDamage[maxEvent] <- 100E6
 
 ### Financial damage
 
-```{r damage}
+```{r totalDamage}
 damage <- select(damageData, EVTYPE, totalDamage) %>%
     group_by(EVTYPE) %>%
     summarise(total = sum(totalDamage), count = n(), mean = mean(totalDamage)) %>%
     arrange(desc(total))
 
-top5 <- head(damage, 6)
+top5 <- head(damage, 5)
 
 ggplot(data = top5,
        aes(x = reorder(EVTYPE, -total),
@@ -144,6 +145,17 @@ ggplot(data = top5,
 
 ```
 
+```{r meanDamage}
+top5Table <- data.frame(top5$EVTYPE)
+top5Table <- mutate(top5Table,
+                    mean = digits(top5$mean * 1E-6, 2),
+                    count = top5$count,
+                    total = digits(top5$total * 1E-6, 0))
+names(top5Table) <- c("Event", "Mean Damage [million USD]", "Nr. of events", "Total Damage [million USD]")
+formattable(top5Table,
+            align = c("l", "r", "r", "r")
+)
+```
 
 ### Casualties
 
@@ -168,7 +180,7 @@ fullplot <- ggplot(data = melted,
     labs(title = "Total Number of Casualties 1950 - 2011",
          x = "",
          y = "Casualties") +
-    theme(legend.title = element_blank()) + 
+    theme(legend.title = element_blank()) +
     geom_bar(position = "stack", stat = "identity") +
     scale_fill_manual(values = c("red", "black"))
 
@@ -177,5 +189,4 @@ zoomplot <- fullplot +
     labs(title = "Zoomed View")
 
 grid.arrange(fullplot, zoomplot, nrow = 2)
-
 ```
