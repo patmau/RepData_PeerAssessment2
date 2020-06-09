@@ -15,7 +15,6 @@ bla bla bla
 knitr::opts_chunk$set(echo = TRUE)
 
 library(dplyr)
-library(reshape2)
 library(ggplot2)
 library(gridExtra)
 library(formattable)
@@ -75,7 +74,7 @@ The number of event types is now `r length(levels(data$EVTYPE))`, with the top f
 head(summary(data$EVTYPE), 5)
 ```
 
-A much more thorough cleaning-up of event types in the data would be needed, but is beyond the scope of this assignment.
+A much more thorough cleaning-up of event types would be needed, but is beyond the scope of this assignment.
 
 
 ### Financial damage
@@ -140,7 +139,7 @@ ggplot(data = top5,
     geom_col() +
     labs(title = "Total Damage 1950 - 2011 by Event Type",
          x = "",
-         y = "Billion USD",
+         y = "Damage in billion USD",
          fill = "Nr. of events\n(log scale)")
 
 ```
@@ -163,30 +162,38 @@ formattable(top5Table,
 casualties <- select(data, EVTYPE, FATALITIES, INJURIES) %>%
     group_by(EVTYPE) %>%
     summarise(injured = sum(INJURIES),
-              fatal = sum(FATALITIES)) %>%
-    arrange(desc(injured + fatal))
+              fatal = sum(FATALITIES),
+              count = n())
 
-top5 <- head(casualties, 5)
-melted <- melt(top5, id.vars = "EVTYPE")
+top5fatal <- head(arrange(casualties, desc(fatal)), 5)
+top5injured <- head(arrange(casualties, desc(injured)), 5)
 
 #line breaks for x-axis labels
-melted$EVTYPE <- gsub(" ", "\n", melted$EVTYPE)
+top5fatal$EVTYPE <- gsub(" ", "\n", top5fatal$EVTYPE)
+top5injured$EVTYPE <- gsub(" ", "\n", top5injured$EVTYPE)
 
-fullplot <- ggplot(data = melted,
-       aes(x = reorder(EVTYPE, -value),
-           y = value,
-           fill = variable)
+fatalplot <- ggplot(data = top5fatal,
+       aes(x = reorder(EVTYPE, -fatal),
+           y = fatal,
+           fill = log10(count))
        ) +
-    labs(title = "Total Number of Casualties 1950 - 2011",
+    labs(title = "Total Number of Fatalities 1950 - 2011",
          x = "",
-         y = "Casualties") +
-    theme(legend.title = element_blank()) +
-    geom_bar(position = "stack", stat = "identity") +
-    scale_fill_manual(values = c("red", "black"))
+         y = "Fatalities",
+         fill = "Nr. of events\n(log scale)") +
+    geom_bar(position = "stack", stat = "identity") 
 
-zoomplot <- fullplot +
-    coord_cartesian(ylim = c(0, 12000)) +
-    labs(title = "Zoomed View")
+injuredplot <- ggplot(data = top5injured,
+       aes(x = reorder(EVTYPE, -injured),
+           y = injured,
+           fill = log10(count))
+       ) +
+    labs(title = "Total Number of Injuries 1950 - 2011",
+         x = "",
+         y = "Injuries",
+         fill = "Nr. of events\n(log scale)") +
+    geom_bar(position = "stack", stat = "identity") 
 
-grid.arrange(fullplot, zoomplot, nrow = 2)
+grid.arrange(fatalplot, injuredplot, nrow = 2)
 ```
+
