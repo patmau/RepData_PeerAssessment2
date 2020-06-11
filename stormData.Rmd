@@ -9,7 +9,15 @@ output: html_document
 
 ## Synopsis
 
-bla bla bla
+The NOAA storm database collects information about major storms and weather events in the United States, including estimates of fatalities, injuries, and economical damage.
+In this assignment, we look at events in the database from 1950 to November 2011, and try to determine which type of events are most harmful to population health and cause the highest economical damage.
+
+In terms of fatalities, tornadoes are the most harmful events, followed by excessive heat and flash floods.
+Tornadoes also cause the highest number of injuries by far, followed by thunderstorm winds and floods.
+The highest economical damage is caused by hurricanes, followed by tornadoes and storm surges.
+Tornadoes should thus probably be considered the most dangerous type of weather event, as they cause large damage to population health as well as large economical damage.
+They are also the third most frequent event in the database.
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
