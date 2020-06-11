@@ -1,7 +1,7 @@
 ---
 title: "Storm Data"
 author: "patmau"
-date: "6/1/2020"
+date: "6/11/2020"
 output: html_document
 ---
 
@@ -28,7 +28,7 @@ sessionInfo()
 
 ## Download and process data
 
-Download the file if necessary and load it into R:
+Download the data file if necessary and load it into R:
 
 ```{r download, cache=TRUE}
 dataFile <- "data/StormData.csv.bz2"
@@ -39,7 +39,9 @@ if (!file.exists(dataFile)) {
 }
 
 data <- read.csv(dataFile, header = TRUE, stringsAsFactors = FALSE)
+nEvents <- nrow(data)
 ```
+The data set contains a total of `r nEvents` events.
 
 ### Event types
 
@@ -80,14 +82,15 @@ A much more thorough cleaning-up of event types would be needed, but is beyond t
 ### Financial damage
 
 Financial damage results from damage to property and damage to crop.
-It is represented in the dataset as a combination of a number ("`PROPDMG`") and a magnitude expressed as an alphabetical character (`PROPDMGEXP`).
+We combine the types of damage into a single value for total financial damage caused by a given event.
+Damage is represented in the dataset as a combination of a number ("`PROPDMG`") and a magnitude expressed as an alphabetical character (`PROPDMGEXP`).
 According to the documentation, allowed characters include 'K', 'M', 'B', for 10^3, 10^6, and 10^9.
 We find:
 ```{r damageExponents}
 summary(factor(data$PROPDMGEXP))
 summary(factor(data$CROPDMGEXP))
 ```
-The vast majority of entries contains no exponent or a valid one, and only those will be considered in this analysis:
+The vast majority of entries contain either no exponent or a valid one, and only those will be considered in this analysis. We will assume that a missing exponent corresponds to a factor 10^0 = 1.
 
 ```{r processDamage}
 # valid exponents
@@ -106,7 +109,10 @@ damageData <- data[validExp, ]
 # combine property and crop damage
 damageData$totalDamage <- damageData$PROPDMG * expValue[damageData$PROPDMGEXP] +
     damageData$CROPDMG * expValue[damageData$CROPDMGEXP]
+
+nEventsWithDamage <- nrow(damageData)
 ```
+We obtain `r nEventsWithDamage` events with a valid value for total damage, which is `r percent(nEventsWithDamage / nEvents)` of all recorded events.
 
 The single event with the largest total damage:
 ```{r maxDamage}
@@ -124,7 +130,9 @@ damageData$totalDamage[maxEvent] <- 100E6
 
 ### Financial damage
 
-```{r totalDamage}
+We assess economical consequences by computing the financial damage caused by an event type, accumulated over the entire time period in the data set (1950 - Nov 2011):
+
+```{r financialDamage}
 damage <- select(damageData, EVTYPE, totalDamage) %>%
     group_by(EVTYPE) %>%
     summarise(total = sum(totalDamage), count = n(), mean = mean(totalDamage)) %>%
@@ -144,6 +152,14 @@ ggplot(data = top5,
 
 ```
 
+We find that hurricanes are causing the largest financial damage overall, followed by tornadoes.
+The coloring according to number of events suggests that we can discern two broad categories of events:
+
+1. Relatively rare events causing very large damage (hurricane, storm surge)
+2. Events that cause small to moderate damage, but occur much more frequently (tornadoes, floods, hail)
+
+A table including mean damage per event:
+
 ```{r meanDamage}
 top5Table <- data.frame(top5$EVTYPE)
 top5Table <- mutate(top5Table,
@@ -155,10 +171,11 @@ formattable(top5Table,
             align = c("l", "r", "r", "r")
 )
 ```
+The table above supports our assumption. Hurricanes and storm surges are relatively rare, but cause hundreds of millions of dollars of damage on average. A hail event, on the other hand, results in a mean damage of only 60k USD. However, the sheer number of hail events results in a total damage in the billions.
 
-### Casualties
+### Population health
 
-```{r peopleDamage}
+```{r healthDamage}
 casualties <- select(data, EVTYPE, FATALITIES, INJURIES) %>%
     group_by(EVTYPE) %>%
     summarise(injured = sum(INJURIES),
