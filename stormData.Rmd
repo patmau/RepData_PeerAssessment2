@@ -128,14 +128,16 @@ damageData$totalDamage[maxEvent] <- 100E6
 
 ## Results
 
-### Financial damage
+### Economical consequences
 
-We assess economical consequences by computing the financial damage caused by an event type, accumulated over the entire time period in the data set (1950 - Nov 2011):
+We assess economical consequences by computing the financial damage caused by an event type, accumulated over the entire time period in the data set (1950 - Nov 2011). Note that inflation is not accounted for. 
 
 ```{r financialDamage}
 damage <- select(damageData, EVTYPE, totalDamage) %>%
     group_by(EVTYPE) %>%
-    summarise(total = sum(totalDamage), count = n(), mean = mean(totalDamage)) %>%
+    summarise(total = sum(totalDamage),
+              count = n(),
+              mean = mean(totalDamage)) %>%
     arrange(desc(total))
 
 top5 <- head(damage, 5)
@@ -152,11 +154,11 @@ ggplot(data = top5,
 
 ```
 
-We find that hurricanes are causing the largest financial damage overall, followed by tornadoes.
+We find that hurricanes cause the largest financial damage overall, followed by tornadoes.
 The coloring according to number of events suggests that we can discern two broad categories of events:
 
 1. Relatively rare events causing very large damage (hurricane, storm surge)
-2. Events that cause small to moderate damage, but occur much more frequently (tornadoes, floods, hail)
+2. Events that cause small to moderate damage, but occur much more frequently (tornado, flood, hail)
 
 A table including mean damage per event:
 
@@ -171,9 +173,11 @@ formattable(top5Table,
             align = c("l", "r", "r", "r")
 )
 ```
-The table above supports our assumption. Hurricanes and storm surges are relatively rare, but cause hundreds of millions of dollars of damage on average. A hail event, on the other hand, results in a mean damage of only 60k USD. However, the sheer number of hail events results in a total damage in the billions.
+The table above supports our assumption. Hurricanes and storm surges are relatively rare, but cause hundreds of millions of dollars of damage on average. A hail event, on the other hand, results in a mean damage of only 60k USD. However, the sheer number of events results in a total damage in the billions.
 
 ### Population health
+
+We assess the consequences for population health by computing the total number of fatalities and injuries (separately) caused by events:
 
 ```{r healthDamage}
 casualties <- select(data, EVTYPE, FATALITIES, INJURIES) %>%
@@ -214,3 +218,19 @@ injuredplot <- ggplot(data = top5injured,
 grid.arrange(fatalplot, injuredplot, nrow = 2)
 ```
 
+The most harmful events by far are tornadoes in both categories. In terms of fatalities, excessive heat ranks second, while the second most injuries are caused by thunderstorm wind. Notably, hurricanes cause huge economical damage, but do not appear in either top five in terms of health damage.
+Thunderstorm winds are responsible for the second most injuries, due to the large number of events; similar to hail when it comes to financial damage.
+In fact, thunderstorm winds and hail are the most frequent events in the data set (followed by tornadoes) and account for more than 60% of all events:
+
+```{r frequentEvents}
+events <- select(data, EVTYPE) %>%
+    group_by(EVTYPE) %>%
+    summarise(count = n()) %>%
+    arrange(desc(count))
+
+top3Event <- head(events, 3)
+top3Event$percent <- percent(top3Event$count / nEvents)
+names(top3Event) <- c("Event", "Nr. of Events", "Percentage of all Events")
+formattable(top3Event,
+            align = c("l", "r", "r"))
+```
