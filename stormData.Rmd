@@ -28,7 +28,7 @@ library(gridExtra)
 library(formattable)
 ```
 
-## Download and process data
+## Data processing
 
 Download the data file if necessary and load it into R:
 
